@@ -1,14 +1,18 @@
+import sys
 from unittest import mock
 
+import pytest
 from django.test import TestCase, override_settings
 from django.urls import path
 
+from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.routers import SimpleRouter
 from rest_framework.serializers import ModelSerializer
 from rest_framework.utils import json
 from rest_framework.utils.breadcrumbs import get_breadcrumbs
 from rest_framework.utils.formatting import lazy_format
+from rest_framework.utils.serializer_helpers import ReturnDict
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -267,3 +271,39 @@ class LazyFormatTests(TestCase):
         assert message.format.call_count == 1
         str(formatted)
         assert message.format.call_count == 1
+
+
+class TestReturnDict(TestCase):
+
+    def setUp(self):
+        class ExampleSerializer1(serializers.Serializer):
+            char = serializers.CharField()
+            integer = serializers.IntegerField()
+
+        class ExampleSerializer2(serializers.Serializer):
+            language = serializers.CharField()
+            version = serializers.FloatField()
+
+        self.Serializer1 = ExampleSerializer1
+        self.Serializer2 = ExampleSerializer2
+        self.data1 = {'char': 'abc', 'integer': 123}
+        self.data2 = {'language': 'python', 'version': 3.9}
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="union operator on ReturnDict requires Python 3.9 or higher",
+    )
+    def test_ReturnDict_union_operator(self):
+        serializer1 = self.Serializer1(data=self.data1)
+        serializer2 = self.Serializer2(data=self.data2)
+        serializer1.is_valid()
+        serializer2.is_valid()
+
+        return_dict1 = ReturnDict(self.data1, serializer=serializer1)
+        return_dict2 = ReturnDict(self.data2, serializer=serializer2)
+        result_dict_from_dictionary_unpacking = {**return_dict1, **return_dict2}
+        try:
+            result = return_dict1 | return_dict2
+        except KeyError as exc:
+            assert False, f"'return_dict1 | return_dict2' raised an exception {exc}"
+        assert result == result_dict_from_dictionary_unpacking

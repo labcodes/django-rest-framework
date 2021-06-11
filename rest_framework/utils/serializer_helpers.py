@@ -28,6 +28,24 @@ class ReturnDict(OrderedDict):
         # but preserve the raw data.
         return (dict, (dict(self),))
 
+    def __or__(self, other):
+        if not isinstance(other, ReturnDict):
+            return NotImplemented
+        new = ReturnDict(self, serializer=self.serializer)
+        new.update(other)
+        return new
+
+    def __ror__(self, other):
+        if not isinstance(other, ReturnDict):
+            return NotImplemented
+        new = ReturnDict(other, serializer=self.serializer)
+        new.update(self)
+        return new
+
+    def __ior__(self, other):
+        dict.update(self, other)
+        return self
+
 
 class ReturnList(list):
     """

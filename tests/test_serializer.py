@@ -212,6 +212,28 @@ class TestSerializer:
     def test_serializer_is_subscriptable(self):
         assert serializers.Serializer is serializers.Serializer["foo"]
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="union operator on serializer.data requires Python 3.9 or higher",
+    )
+    def test_serializer_data_union_operator(self):
+        class ExampleSerializer2(serializers.Serializer):
+            language = serializers.CharField()
+            version = serializers.FloatField()
+
+        data1 = {'char': 'abc', 'integer': 123}
+        data2 = {'language': 'python', 'version': 3.9}
+
+        serializer1 = self.Serializer(data=data1)
+        serializer2 = ExampleSerializer2(data=data2)
+        serializer1.is_valid()
+        serializer2.is_valid()
+        try:
+            result = serializer1.data | serializer2.data
+        except KeyError as exc:
+            assert False, f"'serializer1.data | serializer2.data' raised an exception {exc}"
+        assert result == {**serializer1.data, **serializer2.data}
+
 
 class TestValidateMethod:
     def test_non_field_error_validate_method(self):
